@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Vacaciones — Instrumentación Turno 2</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#10151b">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vacaciones">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#10151b;
+    --bg-panel:#1a212a;
+    --bg-panel-raised:#212a35;
+    --border:#2c3846;
+    --border-soft:#232d38;
+    --text-primary:#e8edf2;
+    --text-secondary:#8b9aa8;
+    --text-dim:#5c6b79;
+    --accent-blue:#4da3ff;
+    --accent-blue-dim:#1e3a52;
+    --accent-amber:#ffb020;
+    --accent-amber-dim:#4a3712;
+    --accent-green:#3ecf8e;
+    --accent-green-dim:#123d2c;
+    --accent-red:#ff5c5c;
+    --accent-red-dim:#4a1e1e;
+    --accent-signal:#ff7a1a;
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #172230 0%, transparent 60%),
+      var(--bg-deep);
+    color:var(--text-primary);
+    font-family:var(--font-body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--accent-signal);color:#12161c;}
+
+  /* ---------- Fondo temático (esquema industrial) ---------- */
+  .bg-scene{
+    position:fixed;inset:0;z-index:0;opacity:.16;pointer-events:none;overflow:hidden;
+  }
+  .bg-scene svg{width:100%;height:100%;}
+  .topbar,.tabs,.wrap,.footer-note{position:relative;z-index:1;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:16px;
+    padding:16px 24px;border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,#151b22,#131920);
+    position:sticky;top:0;z-index:40;
+  }
+  .led{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--accent-green);
+    box-shadow:0 0 8px 2px var(--accent-green);
+    animation:blink 2.4s ease-in-out infinite;
+    flex-shrink:0;
+  }
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand h1{
+    font-family:var(--font-display);
+    font-size:16px;font-weight:700;letter-spacing:.3px;margin:0;
+    color:var(--text-primary);
+  }
+  .brand .sub{
+    font-family:var(--font-mono);font-size:11px;color:var(--text-dim);
+    letter-spacing:.5px;text-transform:uppercase;
+  }
+  .searchbox{
+    margin-left:auto;display:flex;align-items:center;gap:8px;
+    background:var(--bg-panel-raised);border:1px solid var(--border);
+    border-radius:8px;padding:8px 12px;min-width:260px;
+  }
+  .searchbox input{
+    background:none;border:none;outline:none;color:var(--text-primary);
+    font-family:var(--font-mono);font-size:13px;width:100%;
+  }
+  .searchbox input::placeholder{color:var(--text-dim);}
+  .searchbox svg{flex-shrink:0;color:var(--text-dim);}
+
+  /* ---------- Nav tabs ---------- */
+  .tabs{
+    display:flex;gap:2px;padding:0 24px;background:#12171d;
+    border-bottom:1px solid var(--border);overflow-x:auto;
+  }
+  .tab{
+    font-family:var(--font-display);font-size:13px;font-weight:600;
+    padding:12px 18px;color:var(--text-secondary);cursor:pointer;
+    border-bottom:2px solid transparent;white-space:nowrap;
+    transition:color .15s, border-color .15s;
+  }
+  .tab:hover{color:var(--text-primary);}
+  .tab.active{color:var(--accent-signal);border-bottom-color:var(--accent-signal);}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:24px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ---------- Panel card w/ instrument bezel ---------- */
+  .panel{
+    position:relative;background:var(--bg-panel);
+    border:1px solid var(--border);border-radius:10px;
+    padding:20px;margin-bottom:20px;
+  }
+  .panel::before,.panel::after,.panel .bracket-tl,.panel .bracket-br{content:'';position:absolute;width:14px;height:14px;border-color:var(--accent-signal);opacity:.55;}
+  .panel::before{top:-1px;left:-1px;border-top:2px solid var(--accent-signal);border-left:2px solid var(--accent-signal);border-radius:10px 0 0 0;}
+  .panel::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--accent-signal);border-right:2px solid var(--accent-signal);border-radius:0 0 10px 0;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .panel-title{
+    font-family:var(--font-display);font-size:14px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.6px;color:var(--text-primary);
+    display:flex;align-items:center;gap:8px;
+  }
+  .panel-title .idx{color:var(--accent-signal);font-family:var(--font-mono);}
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    font-family:var(--font-display);font-weight:600;font-size:13px;
+    padding:10px 16px;border-radius:7px;border:1px solid var(--border);
+    background:var(--bg-panel-raised);color:var(--text-primary);cursor:pointer;
+    transition:all .15s;display:inline-flex;align-items:center;gap:6px;
+  }
+  .btn:hover{border-color:var(--accent-signal);}
+  .btn-primary{background:var(--accent-signal);color:#191008;border-color:var(--accent-signal);}
+  .btn-primary:hover{filter:brightness(1.1);}
+  .btn-ghost{background:none;}
+  .btn-danger{color:var(--accent-red);}
+  .btn-danger:hover{border-color:var(--accent-red);}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:6px;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ---------- Forms ---------- */
+  label{display:block;font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+  input[type=text],input[type=number],input[type=date],select{
+    width:100%;background:var(--bg-deep);border:1px solid var(--border);
+    color:var(--text-primary);padding:10px 12px;border-radius:7px;
+    font-family:var(--font-mono);font-size:13px;outline:none;
+  }
+  input:focus,select:focus{border-color:var(--accent-blue);}
+  .field{margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr;}}
+  .checkline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);margin-bottom:14px;}
+  .checkline input{width:auto;}
+
+  /* ---------- Table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;font-family:var(--font-display);font-size:11px;
+    text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);
+    padding:8px 10px;border-bottom:1px solid var(--border);
+  }
+  tbody td{padding:10px;border-bottom:1px solid var(--border-soft);color:var(--text-primary);}
+  tbody tr:hover{background:var(--bg-panel-raised);}
+  .mono{font-family:var(--font-mono);}
+  .empty-row td{text-align:center;color:var(--text-dim);padding:24px;font-style:italic;}
+
+  /* ---------- Badge ---------- */
+  .badge{
+    display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-family:var(--font-display);
+  }
+  .badge::before{content:'';width:6px;height:6px;border-radius:50%;}
+  .badge.planificada{background:var(--accent-blue-dim);color:var(--accent-blue);}
+  .badge.planificada::before{background:var(--accent-blue);}
+  .badge.enproceso{background:var(--accent-amber-dim);color:var(--accent-amber);}
+  .badge.enproceso::before{background:var(--accent-amber);}
+  .badge.concluida{background:var(--accent-green-dim);color:var(--accent-green);}
+  .badge.concluida::before{background:var(--accent-green);}
+  .badge.admin{background:rgba(255,122,26,.15);color:var(--accent-signal);}
+  .badge.admin::before{background:var(--accent-signal);}
+
+  /* ---------- Logo de la empresa (tamaño tipo foto 1"x1") ---------- */
+  .company-logo{
+    width:96px;height:96px;border-radius:6px;border:3px solid var(--border);
+    background:var(--bg-panel-raised);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;overflow:hidden;flex-shrink:0;color:var(--text-dim);transition:border-color .15s;
+    box-shadow:0 4px 14px rgba(0,0,0,.4);
+  }
+  .company-logo:hover{border-color:var(--accent-signal);color:var(--accent-signal);}
+  .company-logo img{width:100%;height:100%;object-fit:cover;display:block;}
+
+  /* ---------- Readout (digital display) ---------- */
+  .readout{
+    background:#0b0f13;border:1px solid var(--border);border-radius:8px;
+    padding:12px 14px;text-align:center;
+  }
+  .readout .val{font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--accent-signal);
+    text-shadow:0 0 10px rgba(255,122,26,.35);}
+  .readout .lbl{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;margin-top:4px;}
+  .readouts-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  @media(max-width:760px){.readouts-row{grid-template-columns:repeat(2,1fr);}}
+
+  /* ---------- Barra de progreso ---------- */
+  .usobar-wrap{display:flex;align-items:center;gap:8px;min-width:120px;}
+  .usobar-track{flex:1;height:8px;border-radius:5px;background:#0b0f13;border:1px solid var(--border);overflow:hidden;}
+  .usobar-fill{height:100%;border-radius:5px;transition:width .3s;}
+  .usobar-pct{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);min-width:32px;text-align:right;}
+
+  /* ---------- Alertas list ---------- */
+  .alert-item{
+    display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;
+    background:var(--bg-panel-raised);border:1px solid var(--border-soft);margin-bottom:8px;font-size:13px;
+  }
+  .alert-item .dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+  .alert-item.warn .dot{background:var(--accent-amber);box-shadow:0 0 6px var(--accent-amber);}
+  .alert-item.danger .dot{background:var(--accent-red);box-shadow:0 0 6px var(--accent-red);}
+  .alert-item b{color:var(--text-primary);}
+  .alert-item span.detail{color:var(--text-secondary);}
+  .no-alerts{color:var(--text-dim);font-size:13px;font-style:italic;text-align:center;padding:16px;}
+
+  /* ---------- Filtros ---------- */
+  .filters-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+  .filters-row select{width:auto;min-width:150px;}
+  .filter-date-group{display:flex;align-items:center;gap:8px;background:var(--bg-panel-raised);border:1px solid var(--border);border-radius:7px;padding:4px 10px 4px 12px;cursor:pointer;transition:border-color .15s;}
+  .filter-date-group:hover{border-color:var(--accent-blue);}
+  .filter-date-group label{margin:0;font-size:10px;color:var(--text-dim);white-space:nowrap;cursor:pointer;}
+  .filter-date-group input[type=date]{width:auto;min-width:118px;background:none;border:none;padding:6px 0;cursor:pointer;}
+  .filter-date-group input[type=date]:focus{border:none;}
+  .filter-cal-icon{color:var(--text-dim);flex-shrink:0;pointer-events:none;}
+  .field .filter-date-group{width:100%;}
+  .field .filter-date-group input[type=date]{flex:1;min-width:0;}
+
+  /* ---------- Calendario mensual ---------- */
+  .cal-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px;}
+  .cal-nav .cal-month-label{font-family:var(--font-display);font-size:15px;font-weight:700;text-transform:capitalize;min-width:180px;text-align:center;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-dow{font-family:var(--font-display);font-size:10px;text-transform:uppercase;color:var(--text-dim);text-align:center;padding-bottom:4px;letter-spacing:.5px;}
+  .cal-day{
+    min-height:74px;background:var(--bg-panel-raised);border:1px solid var(--border-soft);
+    border-radius:7px;padding:6px;position:relative;
+  }
+  .cal-day.blank{background:none;border:none;}
+  .cal-day.today{border-color:var(--accent-signal);}
+  .cal-day.weekend{background:#171f28;}
+  .cal-day.feriado{background:var(--accent-red-dim);}
+  .cal-day .num{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);}
+  .cal-day.today .num{color:var(--accent-signal);font-weight:700;}
+  .cal-day .fer-label{font-size:9px;color:var(--accent-red);display:block;line-height:1.2;margin-top:1px;}
+  .cal-chip{
+    font-size:9px;padding:1px 5px;border-radius:4px;margin-top:2px;
+    display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);
+  }
+  .cal-chip.planificada{background:var(--accent-blue-dim);color:var(--accent-blue);}
+  .cal-chip.enproceso{background:var(--accent-amber-dim);color:var(--accent-amber);}
+  .cal-chip.concluida{background:var(--accent-green-dim);color:var(--accent-green);}
+  .cal-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;font-size:12px;color:var(--text-secondary);}
+  .cal-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .cal-legend i{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  @media(max-width:640px){
+    .cal-grid{gap:3px;}
+    .cal-day{min-height:52px;padding:3px;}
+    .cal-chip{display:none;}
+    .cal-day.has-vac::after{content:'●';color:var(--accent-signal);font-size:10px;position:absolute;bottom:3px;right:5px;}
+  }
+
+  /* ---------- Modal ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(6,9,12,.72);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;z-index:100;padding:20px;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;
+    width:100%;max-width:480px;padding:22px;max-height:90vh;overflow-y:auto;
+  }
+  .modal h2{font-family:var(--font-display);font-size:16px;margin:0 0 16px;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:8px;}
+
+  /* ---------- Alert banner ---------- */
+  .alert{
+    padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;
+    border:1px solid; display:none; font-family:var(--font-mono);
+  }
+  .alert.show{display:block;}
+  .alert.error{background:var(--accent-red-dim);border-color:var(--accent-red);color:#ffb3b3;}
+  .alert.warn{background:var(--accent-amber-dim);border-color:var(--accent-amber);color:#ffd680;}
+  .alert.ok{background:var(--accent-green-dim);border-color:var(--accent-green);color:#a6f3d0;}
+
+  .charts-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;}
+  @media(max-width:820px){.charts-grid{grid-template-columns:1fr;}}
+  .chart-box{position:relative;height:260px;}
+  .chart-empty-msg{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    text-align:center;padding:20px;color:var(--text-dim);font-size:12.5px;font-family:var(--font-mono);
+    background:var(--bg-panel);
+  }
+  .chart-empty-msg.show{display:flex;}
+
+  .footer-note{color:var(--text-dim);font-size:12px;text-align:center;padding:20px 0 40px;font-family:var(--font-mono);}
+
+  /* ---------- Print ---------- */
+  #print-area{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #print-area, #print-area *{visibility:visible;}
+    #print-area{display:block;position:absolute;top:0;left:0;width:100%;padding:40px;color:#111;background:#fff;}
+    .topbar,.tabs{display:none;}
+  }
+  #print-area{color:#111;font-family:Arial,sans-serif;}
+  .print-title{font-size:20px;font-weight:700;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:16px;}
+  .print-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ccc;font-size:14px;}
+  .print-sign{margin-top:60px;display:flex;justify-content:space-between;}
+  .print-sign div{width:40%;text-align:center;border-top:1px solid #111;padding-top:6px;font-size:12px;}
+</style>
+</head>
+<body>
+
+<div class="bg-scene" aria-hidden="true">
+<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#4da3ff" stroke-width="0.5" opacity="0.35"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+
+  <!-- trazos tipo circuito / tubería -->
+  <g fill="none" stroke="#ff7a1a" stroke-width="2" opacity="0.55">
+    <path d="M0 160 H220 V300 H520 V120 H900"/>
+    <path d="M60 900 V740 H380 V560 H700 V620 H1040"/>
+    <path d="M1600 220 H1300 V400 H1080 V260 H860"/>
+    <path d="M1600 700 H1360 V520 H1180"/>
+  </g>
+  <g fill="none" stroke="#4da3ff" stroke-width="2" opacity="0.45">
+    <path d="M120 0 V90 H460 V260"/>
+    <path d="M1500 900 V760 H1180 V600"/>
+    <path d="M0 480 H180 V620 H480"/>
+  </g>
+
+  <!-- nodos -->
+  <g fill="#ffb020" opacity="0.6">
+    <circle cx="220" cy="160" r="4"/><circle cx="520" cy="300" r="4"/>
+    <circle cx="900" cy="120" r="4"/><circle cx="380" cy="740" r="4"/>
+    <circle cx="700" cy="560" r="4"/><circle cx="1300" cy="220" r="4"/>
+    <circle cx="1080" cy="400" r="4"/><circle cx="1360" cy="700" r="4"/>
+    <circle cx="460" cy="90" r="4"/><circle cx="180" cy="480" r="4"/>
+  </g>
+
+  <!-- burbujas de instrumento estilo P&ID -->
+  <g fill="none" stroke="#8b9aa8" stroke-width="1.5" opacity="0.5" font-family="monospace" font-size="20">
+    <circle cx="1180" cy="150" r="46"/>
+    <line x1="1134" y1="150" x2="1226" y2="150"/>
+    <text x="1180" y="140" text-anchor="middle" fill="#8b9aa8">PT</text>
+    <text x="1180" y="164" text-anchor="middle" fill="#8b9aa8">101</text>
+  </g>
+  <g fill="none" stroke="#8b9aa8" stroke-width="1.5" opacity="0.5" font-family="monospace" font-size="20">
+    <circle cx="260" cy="620" r="46"/>
+    <line x1="214" y1="620" x2="306" y2="620"/>
+    <text x="260" y="610" text-anchor="middle" fill="#8b9aa8">FT</text>
+    <text x="260" y="634" text-anchor="middle" fill="#8b9aa8">204</text>
+  </g>
+  <g fill="none" stroke="#8b9aa8" stroke-width="1.5" opacity="0.4" font-family="monospace" font-size="18">
+    <circle cx="1420" cy="500" r="38"/>
+    <line x1="1382" y1="500" x2="1458" y2="500"/>
+    <text x="1420" y="492" text-anchor="middle" fill="#8b9aa8">LT</text>
+    <text x="1420" y="512" text-anchor="middle" fill="#8b9aa8">309</text>
+  </g>
+
+  <!-- manómetro grande decorativo -->
+  <g transform="translate(820,720)" opacity="0.4">
+    <circle r="90" fill="none" stroke="#3ecf8e" stroke-width="2"/>
+    <g stroke="#3ecf8e" stroke-width="2">
+      <line x1="0" y1="-80" x2="0" y2="-68"/>
+      <line x1="56.5" y1="-56.5" x2="48" y2="-48"/>
+      <line x1="80" y1="0" x2="68" y2="0"/>
+      <line x1="56.5" y1="56.5" x2="48" y2="48"/>
+      <line x1="0" y1="80" x2="0" y2="68"/>
+      <line x1="-56.5" y1="56.5" x2="-48" y2="48"/>
+      <line x1="-80" y1="0" x2="-68" y2="0"/>
+      <line x1="-56.5" y1="-56.5" x2="-48" y2="-48"/>
+    </g>
+    <line x1="0" y1="0" x2="42" y2="-42" stroke="#ff7a1a" stroke-width="3"/>
+    <circle r="6" fill="#ff7a1a"/>
+  </g>
+</svg>
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="company-logo" id="companyLogo" onclick="abrirModalLogo()" title="Haz clic para cambiar el logo de tu empresa">
+      <img id="companyLogoImg" src="" alt="Logo de la empresa" style="display:none;">
+      <svg id="companyLogoPlaceholder" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    </div>
+    <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="subirLogo(event)">
+    <span class="led"></span>
+    <div>
+      <h1>Panel de Vacaciones</h1>
+      <div class="sub">Instrumentación · Turno 2</div>
+    </div>
+  </div>
+  <div class="searchbox">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="globalSearch" type="text" placeholder="Buscar por nombre o código…">
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-view="dashboard">Dashboard</div>
+  <div class="tab" data-view="calendario">Calendario</div>
+  <div class="tab" data-view="empleados">🔒 Empleados</div>
+  <div class="tab" data-view="vacaciones">Vacaciones</div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ DASHBOARD ============ -->
+  <div class="view active" id="view-dashboard">
+    <div class="panel" id="panelAlertas">
+      <div class="panel-head">
+        <div class="panel-title"><span class="idx">!</span> Alertas</div>
+      </div>
+      <div id="listaAlertas"></div>
+    </div>
+
+    <div class="readouts-row">
+      <div class="readout"><div class="val" id="kpiEmpleados">0</div><div class="lbl">Empleados</div></div>
+      <div class="readout"><div class="val" id="kpiPlanificadas">0</div><div class="lbl">Planificadas</div></div>
+      <div class="readout"><div class="val" id="kpiProceso">0</div><div class="lbl">En proceso</div></div>
+      <div class="readout"><div class="val" id="kpiConcluidas">0</div><div class="lbl">Concluidas</div></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title"><span class="idx">01</span> Días por estado vs. disponibles</div></div>
+        <div class="chart-box">
+          <canvas id="chartDias"></canvas>
+          <div class="chart-empty-msg" id="chartDiasEmpty">Aún no hay técnicos registrados.<br>Este gráfico se activa automáticamente al agregar empleados.</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title"><span class="idx">02</span> Estado de solicitudes</div></div>
+        <div class="chart-box">
+          <canvas id="chartEstados"></canvas>
+          <div class="chart-empty-msg" id="chartEstadosEmpty">Aún no hay solicitudes de vacaciones.<br>Este gráfico se activa automáticamente al registrarlas.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="idx">03</span> Próximas vacaciones</div>
+      </div>
+      <table>
+        <thead><tr><th>Empleado</th><th>Código</th><th>Inicio</th><th>Fin</th><th>Días</th><th>Estado</th></tr></thead>
+        <tbody id="tblProximas"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ CALENDARIO ============ -->
+  <div class="view" id="view-calendario">
+    <div class="panel">
+      <div class="cal-nav">
+        <button class="btn btn-sm" onclick="cambiarMes(-1)">‹ Anterior</button>
+        <div class="cal-month-label" id="calMonthLabel"></div>
+        <button class="btn btn-sm" onclick="cambiarMes(1)">Siguiente ›</button>
+      </div>
+      <div class="cal-grid" id="calGridDow"></div>
+      <div class="cal-grid" id="calGrid" style="margin-top:6px;"></div>
+      <div class="cal-legend">
+        <span><i style="background:var(--accent-blue);"></i> Planificada</span>
+        <span><i style="background:var(--accent-amber);"></i> En proceso</span>
+        <span><i style="background:var(--accent-green);"></i> Concluida</span>
+        <span><i style="background:var(--accent-red-dim);border:1px solid var(--accent-red);"></i> Feriado (RD)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ EMPLEADOS ============ -->
+  <div class="view" id="view-empleados">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="idx">01</span> Directorio de empleados</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" onclick="cerrarSesionAdmin()">🔒 Cerrar acceso</button>
+          <button class="btn btn-sm" onclick="abrirModalImportar()">📥 Importar varios</button>
+          <button class="btn btn-primary" onclick="openEmpleadoModal()">+ Agregar empleado</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Código</th><th>Nombre</th><th>Turno</th><th>Admin</th><th>Días asignados</th><th>Ya tomados (previo)</th><th>Tomados (sistema)</th><th>Disponibles</th><th>Uso</th><th></th></tr></thead>
+        <tbody id="tblEmpleados"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ VACACIONES ============ -->
+  <div class="view" id="view-vacaciones">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="idx">01</span> Nueva solicitud de vacaciones</div>
+      </div>
+      <div id="alertBox" class="alert"></div>
+      <div class="grid3">
+        <div class="field">
+          <label>Empleado</label>
+          <select id="selEmpleado"></select>
+        </div>
+        <div class="field">
+          <label>Fecha de inicio</label>
+          <div class="filter-date-group" onclick="abrirCalendarioFiltro('inpInicio')">
+            <input type="date" id="inpInicio">
+            <svg class="filter-cal-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+        </div>
+        <div class="field">
+          <label>Fecha de fin</label>
+          <div class="filter-date-group" onclick="abrirCalendarioFiltro('inpFin')">
+            <input type="date" id="inpFin">
+            <svg class="filter-cal-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="chkHabiles">
+        <label style="margin:0;text-transform:none;font-weight:400;">Contar solo días hábiles (excluir sábados, domingos y feriados de RD)</label>
+      </div>
+      <div class="grid3" style="align-items:end;">
+        <div class="readout"><div class="val" id="calcDias">0</div><div class="lbl">Días solicitados</div></div>
+        <div class="readout"><div class="val" id="calcDisponibles">-</div><div class="lbl">Días disponibles del empleado</div></div>
+        <button class="btn btn-primary" style="height:44px;" onclick="registrarVacacion()">Registrar solicitud</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="idx">02</span> Solicitudes registradas</div>
+        <button class="btn btn-sm" onclick="imprimirReporteGeneral()">🖨 Imprimir reporte general</button>
+      </div>
+      <table>
+        <thead><tr><th>Empleado</th><th>Código</th><th>Inicio</th><th>Fin</th><th>Días</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="tblVacaciones"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer-note">
+  <span id="storageStatus">Guardando automáticamente…</span>
+  <br><br>
+  <button class="btn btn-sm" onclick="exportarDatos()">⭳ Exportar datos (.json)</button>
+  <button class="btn btn-sm" onclick="document.getElementById('fileImport').click()">⭱ Importar datos</button>
+  <input type="file" id="fileImport" accept=".json" style="display:none" onchange="importarDatos(event)">
+</div>
+
+<!-- ===== Modal: agregar empleado ===== -->
+<div class="overlay" id="modalEmpleado">
+  <div class="modal">
+    <h2 id="modalEmpleadoTitulo">Agregar empleado</h2>
+    <input type="hidden" id="empEditId" value="">
+    <div class="field">
+      <label>Código de empleado</label>
+      <input type="text" id="empCodigo" placeholder="Ej. INS-014">
+    </div>
+    <div class="field">
+      <label>Nombre completo</label>
+      <input type="text" id="empNombre" placeholder="Ej. Juan Pérez">
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Turno</label>
+        <select id="empTurno">
+          <option>Turno 1</option>
+          <option selected>Turno 2</option>
+          <option>Turno 3</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Días de vacaciones al año</label>
+        <input type="number" id="empDias" value="15" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label>Días ya tomados antes de usar el sistema</label>
+      <input type="number" id="empYaTomados" value="0" min="0">
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin:-8px 0 14px;">
+      Úsalo para casos como el de Leomar: si ya tomó 9 días este año antes de registrarlos aquí, pon 9. El sistema restará esto de los días asignados y solo le permitirá pedir los días que le quedan.
+    </div>
+    <div class="checkline">
+      <input type="checkbox" id="empAdmin" onchange="document.getElementById('campoPin').style.display=this.checked?'block':'none';">
+      <label style="margin:0;text-transform:none;font-weight:400;">Es administrador / supervisor del sistema</label>
+    </div>
+    <div class="field" id="campoPin" style="display:none;">
+      <label>PIN de acceso (4 dígitos)</label>
+      <input type="text" id="empPin" placeholder="Ej. 4821" maxlength="4" inputmode="numeric">
+      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">
+        Este PIN es lo que le vas a pedir para entrar a la pestaña de Empleados. Guárdalo en un lugar seguro.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modalEmpleado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar empleado</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: importar varios empleados a la vez ===== -->
+<div class="overlay" id="modalImportar">
+  <div class="modal" style="max-width:640px;">
+    <h2>Importar varios empleados</h2>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">
+      La forma más rápida: abre Excel, crea 4 columnas (<b>Código, Nombre, Turno, Días asignados</b>),
+      llena una fila por empleado, selecciona todas las filas con datos y cópialas (<b>Ctrl+C</b>).
+      Luego pega aquí abajo (<b>Ctrl+V</b>) y dale a "Importar".
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button type="button" class="btn btn-sm" onclick="descargarPlantillaEmpleados()">⭳ Descargar plantilla CSV</button>
+      <button type="button" class="btn btn-sm" onclick="document.getElementById('importarArchivo').click()">📁 O sube un archivo CSV</button>
+      <input type="file" id="importarArchivo" accept=".csv,.txt" style="display:none" onchange="cargarArchivoImportar(event)">
+    </div>
+    <div class="field">
+      <label>Pega aquí los datos (o se llenará solo si subes un archivo)</label>
+      <textarea id="importarTexto" rows="10" style="width:100%;font-family:var(--font-mono);font-size:12.5px;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;color:var(--text-primary);padding:10px;resize:vertical;" placeholder="INS-014	Juan Pérez	Turno 2	15
+INS-015	María Gómez	Turno 2	15
+INS-016	Carlos Ruiz	Turno 1	14"></textarea>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin:-6px 0 14px;">
+      Notas: el <b>Turno</b> es opcional (si lo dejas vacío, se pone "Turno 2"). Los <b>Días asignados</b> también son opcionales (por defecto 15). Si el código de un empleado ya existe, esa fila se omite para no duplicarlo.
+    </div>
+    <div id="importarResumen" style="display:none;background:var(--bg-panel-raised);border:1px solid var(--border);border-radius:7px;padding:10px 12px;font-size:13px;margin-bottom:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modalImportar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="importarEmpleadosMasivo()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: logo de la empresa ===== -->
+<div class="overlay" id="modalLogo">
+  <div class="modal">
+    <h2>Logo de la empresa</h2>
+    <div class="field">
+      <label>Subir una imagen desde tu computadora</label>
+      <button type="button" class="btn btn-sm" onclick="document.getElementById('logoInput').click()">📁 Elegir archivo…</button>
+    </div>
+    <div style="text-align:center;color:var(--text-dim);font-size:11px;margin:6px 0 14px;text-transform:uppercase;font-family:var(--font-display);">— o —</div>
+    <div class="field">
+      <label>Pegar un link de imagen (ej. de GitHub)</label>
+      <input type="text" id="logoUrlInput" placeholder="https://raw.githubusercontent.com/usuario/repo/main/logo.png">
+      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">
+        Tip: en GitHub, abre la imagen dentro del repo, haz clic en "Download" o en el botón "···" → "Copy raw file link", y pega ese link aquí.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modalLogo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarLogoDesdeUrl()">Usar este link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: acceso de administrador ===== -->
+<div class="overlay" id="modalAcceso">
+  <div class="modal" style="max-width:340px;text-align:center;">
+    <h2>🔒 Acceso restringido</h2>
+    <p style="font-size:13px;color:var(--text-secondary);margin-top:-8px;">Esta sección es solo para administradores. Ingresa tu PIN para continuar.</p>
+    <div class="field">
+      <input type="text" id="pinAcceso" placeholder="PIN de 4 dígitos" maxlength="4" inputmode="numeric" style="text-align:center;font-size:20px;letter-spacing:6px;">
+    </div>
+    <div id="pinError" style="color:var(--accent-red);font-size:12px;margin-bottom:10px;display:none;">PIN incorrecto. Intenta de nuevo.</div>
+    <div class="modal-actions" style="justify-content:center;">
+      <button class="btn btn-ghost" onclick="cerrarModalAcceso()">Cancelar</button>
+      <button class="btn btn-primary" onclick="verificarPin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Área de impresión (contenido generado dinámicamente por JS) ===== -->
+<div id="print-area"></div>
+
+<script>
+/* ============================================================
+   ⚙️ CONFIGURACIÓN — pon aquí el link de tu logo
+   ============================================================
+   Pega abajo, entre las comillas, el link "raw" de la imagen de tu
+   logo (por ejemplo uno de GitHub: botón "···" sobre la imagen →
+   "Copy raw file link"). Una vez lo pongas aquí y subas este
+   archivo a GitHub, el logo aparecerá SIEMPRE para todos, en
+   cualquier navegador o dispositivo, sin tener que volver a
+   configurarlo.
+
+   Ejemplo:
+   const LOGO_URL_FIJO = 'https://raw.githubusercontent.com/humberto1988hudl-rgb/Control-Vacacional/main/logo.png';
+
+   Si lo dejas vacío (''), el logo se podrá seguir cambiando desde
+   el panel (clic en el logo), pero solo se guardará en ese
+   navegador.
+   ============================================================ */
+const LOGO_URL_FIJO = '';
+
+/* ============================================================
+   ESTADO EN MEMORIA
+   ============================================================ */
+let empleados = [];   // {id, codigo, nombre, turno, diasAsignados}
+let vacaciones = [];  // {id, empleadoId, inicio, fin, dias, habiles}
+let searchTerm = '';
+let chartDiasRef = null, chartEstadosRef = null;
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+}
+
+/* ============================================================
+   NAVEGACIÓN
+   ============================================================ */
+let adminAutenticado = false;
+let vistaPendiente = null;
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    if(tab.dataset.view==='empleados' && !accesoPermitidoAEmpleados()){
+      vistaPendiente = tab;
+      abrirModalAcceso();
+      return;
+    }
+    activarVista(tab);
+  });
+});
+
+function activarVista(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById('view-'+tab.dataset.view).classList.add('active');
+  if(tab.dataset.view==='dashboard') renderDashboard();
+  if(tab.dataset.view==='calendario') renderCalendario();
+}
+
+function accesoPermitidoAEmpleados(){
+  const hayAdminsConPin = empleados.some(e=>e.admin && e.pin);
+  if(!hayAdminsConPin) return true; // arranque: sin admins configurados todavía, acceso libre
+  return adminAutenticado;
+}
+
+function abrirModalAcceso(){
+  document.getElementById('pinAcceso').value = '';
+  document.getElementById('pinError').style.display = 'none';
+  document.getElementById('modalAcceso').classList.add('show');
+  setTimeout(()=>document.getElementById('pinAcceso').focus(), 50);
+}
+function cerrarModalAcceso(){
+  document.getElementById('modalAcceso').classList.remove('show');
+  vistaPendiente = null;
+}
+function verificarPin(){
+  const pin = document.getElementById('pinAcceso').value.trim();
+  const valido = empleados.some(e=>e.admin && e.pin && e.pin===pin);
+  if(valido){
+    adminAutenticado = true;
+    document.getElementById('modalAcceso').classList.remove('show');
+    if(vistaPendiente) activarVista(vistaPendiente);
+    vistaPendiente = null;
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+  }
+}
+function cerrarSesionAdmin(){
+  adminAutenticado = false;
+  const dashTab = document.querySelector('.tab[data-view="dashboard"]');
+  activarVista(dashTab);
+}
+
+document.getElementById('globalSearch').addEventListener('input', e=>{
+  searchTerm = e.target.value.trim().toLowerCase();
+  renderEmpleados();
+  renderVacaciones();
+});
+
+function abrirCalendarioFiltro(id){
+  const input = document.getElementById(id);
+  try{ input.showPicker(); }
+  catch(err){ input.focus(); }
+}
+
+/* ============================================================
+   FERIADOS — República Dominicana (calculados automáticamente)
+   ============================================================ */
+function pascuaDomingo(year){
+  // Algoritmo de Meeus/Jones/Butcher para calcular el Domingo de Pascua
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4;
+  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+  return new Date(year, mes-1, dia);
+}
+function fmtFecha(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function moverALunes(d){
+  const dia = d.getDay(); // 0=domingo,1=lunes...
+  if(dia===1) return d;
+  const suma = dia===0 ? 1 : (8-dia);
+  const nuevo = new Date(d); nuevo.setDate(d.getDate()+suma);
+  return nuevo;
+}
+function feriadosDelAnio(year){
+  const lista = [
+    {mes:1,dia:1,nombre:'Año Nuevo',movible:false},
+    {mes:1,dia:6,nombre:'Día de Reyes',movible:true},
+    {mes:1,dia:21,nombre:'Día de la Altagracia',movible:false},
+    {mes:1,dia:26,nombre:'Día de Duarte',movible:true},
+    {mes:2,dia:27,nombre:'Independencia Nacional',movible:false},
+    {mes:5,dia:1,nombre:'Día del Trabajo',movible:true},
+    {mes:8,dia:16,nombre:'Restauración',movible:true},
+    {mes:9,dia:24,nombre:'Día de las Mercedes',movible:false},
+    {mes:11,dia:6,nombre:'Día de la Constitución',movible:true},
+    {mes:12,dia:25,nombre:'Navidad',movible:false},
+  ];
+  const map = {};
+  lista.forEach(f=>{
+    let d = new Date(year, f.mes-1, f.dia);
+    if(f.movible) d = moverALunes(d);
+    map[fmtFecha(d)] = f.nombre;
+  });
+  const viernesSanto = new Date(pascuaDomingo(year));
+  viernesSanto.setDate(viernesSanto.getDate()-2);
+  map[fmtFecha(viernesSanto)] = 'Viernes Santo';
+  return map;
+}
+let FERIADOS_CACHE = {};
+function feriadosDeAnioCacheado(year){
+  if(!FERIADOS_CACHE[year]) FERIADOS_CACHE[year] = feriadosDelAnio(year);
+  return FERIADOS_CACHE[year];
+}
+function nombreFeriado(fechaStr){
+  const year = parseInt(fechaStr.slice(0,4));
+  return feriadosDeAnioCacheado(year)[fechaStr] || null;
+}
+function esFeriado(fechaStr){ return !!nombreFeriado(fechaStr); }
+
+/* ============================================================
+   UTILIDADES DE DÍAS / ESTADO
+   ============================================================ */
+function contarDias(inicioStr, finStr, soloHabiles){
+  const inicio = new Date(inicioStr+'T00:00:00');
+  const fin = new Date(finStr+'T00:00:00');
+  if(isNaN(inicio) || isNaN(fin) || fin < inicio) return 0;
+  let dias = 0;
+  let d = new Date(inicio);
+  while(d <= fin){
+    const esFinde = d.getDay() === 0 || d.getDay() === 6;
+    const fStr = fmtFecha(d);
+    if(!soloHabiles || (!esFinde && !esFeriado(fStr))) dias++;
+    d.setDate(d.getDate()+1);
+  }
+  return dias;
+}
+
+function diasTomadosPorEmpleado(empleadoId){
+  return vacaciones
+    .filter(v=>v.empleadoId===empleadoId)
+    .reduce((sum,v)=>sum+v.dias, 0);
+}
+
+function diasDisponibles(empleado){
+  const yaTomados = empleado.diasYaTomados || 0;
+  return empleado.diasAsignados - yaTomados - diasTomadosPorEmpleado(empleado.id);
+}
+
+function estadoVacacion(v){
+  const hoy = todayStr();
+  const inicio = String(v.inicio||'').slice(0,10);
+  const fin = String(v.fin||'').slice(0,10);
+  if(hoy < inicio) return 'planificada';
+  if(hoy > fin) return 'concluida';
+  return 'enproceso';
+}
+
+function estadoLabel(estado){
+  return {planificada:'Planificada', enproceso:'En proceso', concluida:'Concluida'}[estado];
+}
+
+function seTraslapan(aInicio,aFin,bInicio,bFin){
+  return aInicio <= bFin && bInicio <= aFin;
+}
+
+/* ============================================================
+   EMPLEADOS
+   ============================================================ */
+function openEmpleadoModal(id){
+  const editando = !!id;
+  document.getElementById('empEditId').value = id || '';
+  document.getElementById('modalEmpleadoTitulo').textContent = editando ? 'Editar empleado' : 'Agregar empleado';
+
+  if(editando){
+    const e = empleados.find(x=>x.id===id);
+    document.getElementById('empCodigo').value = e.codigo;
+    document.getElementById('empNombre').value = e.nombre;
+    document.getElementById('empDias').value = e.diasAsignados;
+    document.getElementById('empTurno').value = e.turno;
+    document.getElementById('empYaTomados').value = e.diasYaTomados || 0;
+    document.getElementById('empAdmin').checked = !!e.admin;
+    document.getElementById('empPin').value = e.pin || '';
+    document.getElementById('campoPin').style.display = e.admin ? 'block' : 'none';
+  } else {
+    document.getElementById('empCodigo').value='';
+    document.getElementById('empNombre').value='';
+    document.getElementById('empDias').value=15;
+    document.getElementById('empTurno').value='Turno 2';
+    document.getElementById('empYaTomados').value=0;
+    document.getElementById('empAdmin').checked=false;
+    document.getElementById('empPin').value='';
+    document.getElementById('campoPin').style.display='none';
+  }
+  document.getElementById('modalEmpleado').classList.add('show');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+function guardarEmpleado(){
+  const editId = document.getElementById('empEditId').value;
+  const codigo = document.getElementById('empCodigo').value.trim();
+  const nombre = document.getElementById('empNombre').value.trim();
+  const turno = document.getElementById('empTurno').value;
+  const diasAsignados = parseInt(document.getElementById('empDias').value) || 0;
+  const diasYaTomados = parseInt(document.getElementById('empYaTomados').value) || 0;
+  const admin = document.getElementById('empAdmin').checked;
+  const pin = document.getElementById('empPin').value.trim();
+
+  if(!codigo || !nombre){
+    alert('Completa el código y el nombre del empleado.');
+    return;
+  }
+  if(admin && !/^\d{4}$/.test(pin)){
+    alert('Los administradores necesitan un PIN de exactamente 4 dígitos.');
+    return;
+  }
+  const duplicado = empleados.some(e=>e.codigo.toLowerCase()===codigo.toLowerCase() && e.id!==editId);
+  if(duplicado){
+    alert('Ya existe un empleado con ese código.');
+    return;
+  }
+  const pinDuplicado = admin && empleados.some(e=>e.admin && e.pin===pin && e.id!==editId);
+  if(pinDuplicado){
+    alert('Ese PIN ya lo usa otro administrador. Elige uno diferente.');
+    return;
+  }
+
+  if(editId){
+    const e = empleados.find(x=>x.id===editId);
+    e.codigo = codigo; e.nombre = nombre; e.turno = turno;
+    e.diasAsignados = diasAsignados; e.diasYaTomados = diasYaTomados;
+    e.admin = admin; e.pin = admin ? pin : '';
+  } else {
+    empleados.push({id:uid(), codigo, nombre, turno, diasAsignados, diasYaTomados, admin, pin: admin ? pin : ''});
+  }
+  closeModal('modalEmpleado');
+  renderEmpleados();
+  renderSelectEmpleados();
+  renderDashboard();
+  guardarEnBaseDeDatos();
+}
+
+/* ============================================================
+   IMPORTACIÓN MASIVA DE EMPLEADOS
+   ============================================================ */
+function abrirModalImportar(){
+  document.getElementById('importarTexto').value = '';
+  document.getElementById('importarResumen').style.display = 'none';
+  document.getElementById('modalImportar').classList.add('show');
+}
+
+function descargarPlantillaEmpleados(){
+  const contenido = 'Código,Nombre,Turno,Días asignados\nINS-014,Juan Pérez,Turno 2,15\nINS-015,María Gómez,Turno 2,15\n';
+  const blob = new Blob(['\uFEFF' + contenido], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'plantilla_empleados.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function cargarArchivoImportar(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{ document.getElementById('importarTexto').value = e.target.result; };
+  reader.readAsText(file, 'UTF-8');
+  event.target.value = '';
+}
+
+function parsearLineaImportacion(linea){
+  // Detecta si las columnas vienen separadas por tabulador (pegado desde Excel) o por coma (CSV)
+  const sep = linea.includes('\t') ? '\t' : ',';
+  return linea.split(sep).map(c=>c.trim());
+}
+
+function importarEmpleadosMasivo(){
+  const texto = document.getElementById('importarTexto').value;
+  const lineas = texto.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+
+  if(lineas.length===0){
+    alert('Pega los datos de los empleados o sube un archivo CSV antes de importar.');
+    return;
+  }
+
+  let agregados = 0, omitidosDuplicados = 0, omitidosInvalidos = 0;
+  const codigosVistos = new Set(empleados.map(e=>e.codigo.toLowerCase()));
+  const turnosValidos = ['Turno 1','Turno 2','Turno 3'];
+
+  lineas.forEach(linea=>{
+    const cols = parsearLineaImportacion(linea);
+    let [codigo, nombre, turno, dias] = cols;
+    codigo = (codigo||'').trim();
+    nombre = (nombre||'').trim();
+    turno = (turno||'').trim();
+    dias = parseInt(dias) || 15;
+
+    // Se salta la fila de encabezado si la pegaron sin querer (ej. "Código,Nombre,...")
+    if(codigo.toLowerCase()==='código' || codigo.toLowerCase()==='codigo'){ return; }
+
+    if(!codigo || !nombre){ omitidosInvalidos++; return; }
+    if(codigosVistos.has(codigo.toLowerCase())){ omitidosDuplicados++; return; }
+    if(!turnosValidos.includes(turno)) turno = 'Turno 2';
+
+    empleados.push({id:uid(), codigo, nombre, turno, diasAsignados:dias, diasYaTomados:0, admin:false, pin:''});
+    codigosVistos.add(codigo.toLowerCase());
+    agregados++;
+  });
+
+  const resumen = document.getElementById('importarResumen');
+  resumen.style.display = 'block';
+  resumen.innerHTML = `✅ <b>${agregados}</b> empleados agregados.` +
+    (omitidosDuplicados>0 ? `<br>⚠️ ${omitidosDuplicados} omitidos por código duplicado.` : '') +
+    (omitidosInvalidos>0 ? `<br>⚠️ ${omitidosInvalidos} filas omitidas por faltarles código o nombre.` : '');
+
+  if(agregados>0){
+    renderEmpleados();
+    renderSelectEmpleados();
+    renderDashboard();
+    guardarEnBaseDeDatos();
+    document.getElementById('importarTexto').value = '';
+  }
+}
+
+function eliminarEmpleado(id){
+  if(!confirm('¿Eliminar este empleado y sus solicitudes de vacaciones?')) return;
+  empleados = empleados.filter(e=>e.id!==id);
+  vacaciones = vacaciones.filter(v=>v.empleadoId!==id);
+  renderEmpleados();
+  renderSelectEmpleados();
+  renderVacaciones();
+  renderDashboard();
+  guardarEnBaseDeDatos();
+}
+
+function barraProgreso(usados, total){
+  const pct = total > 0 ? Math.min(Math.round((usados/total)*100), 100) : 0;
+  let color = 'var(--accent-green)';
+  if(pct >= 100) color = 'var(--accent-red)';
+  else if(pct >= 70) color = 'var(--accent-amber)';
+  return `<div class="usobar-wrap">
+    <div class="usobar-track"><div class="usobar-fill" style="width:${pct}%;background:${color};"></div></div>
+    <span class="usobar-pct">${pct}%</span>
+  </div>`;
+}
+
+function renderEmpleados(){
+  const tbody = document.getElementById('tblEmpleados');
+  const filtrados = empleados.filter(e=>
+    !searchTerm || e.nombre.toLowerCase().includes(searchTerm) || e.codigo.toLowerCase().includes(searchTerm)
+  );
+  if(filtrados.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No hay empleados registrados todavía.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtrados.map(e=>{
+    const tomadosSistema = diasTomadosPorEmpleado(e.id);
+    const yaTomados = e.diasYaTomados || 0;
+    const disp = diasDisponibles(e);
+    return `<tr>
+      <td class="mono">${e.codigo}</td>
+      <td>${e.nombre}</td>
+      <td>${e.turno}</td>
+      <td>${e.admin ? '<span class="badge admin">Admin</span>' : ''}</td>
+      <td class="mono">${e.diasAsignados}</td>
+      <td class="mono">${yaTomados}</td>
+      <td class="mono">${tomadosSistema}</td>
+      <td class="mono" style="color:${disp<0?'var(--accent-red)':'var(--accent-green)'}">${disp}</td>
+      <td>${barraProgreso(yaTomados+tomadosSistema, e.diasAsignados)}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm" onclick="openEmpleadoModal('${e.id}')">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarEmpleado('${e.id}')">Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSelectEmpleados(){
+  const sel = document.getElementById('selEmpleado');
+  const actual = sel.value;
+  sel.innerHTML = empleados.length===0
+    ? '<option value="">— Agrega un empleado primero —</option>'
+    : empleados.map(e=>`<option value="${e.id}">${e.nombre} (${e.codigo})</option>`).join('');
+  if(empleados.some(e=>e.id===actual)) sel.value = actual;
+  actualizarCalculoDias();
+}
+
+/* ============================================================
+   VACACIONES
+   ============================================================ */
+document.getElementById('chkHabiles').addEventListener('change', actualizarCalculoDias);
+document.getElementById('selEmpleado').addEventListener('change', actualizarCalculoDias);
+document.getElementById('inpInicio').addEventListener('change', actualizarCalculoDias);
+document.getElementById('inpFin').addEventListener('change', actualizarCalculoDias);
+
+function actualizarCalculoDias(){
+  const inicio = document.getElementById('inpInicio').value;
+  const fin = document.getElementById('inpFin').value;
+  const soloHabiles = document.getElementById('chkHabiles').checked;
+  const empId = document.getElementById('selEmpleado').value;
+
+  let dias = 0;
+  if(inicio && fin) dias = contarDias(inicio, fin, soloHabiles);
+  document.getElementById('calcDias').textContent = dias;
+
+  const emp = empleados.find(e=>e.id===empId);
+  document.getElementById('calcDisponibles').textContent = emp ? diasDisponibles(emp) : '-';
+}
+
+function mostrarAlerta(mensaje, tipo){
+  const box = document.getElementById('alertBox');
+  box.textContent = mensaje;
+  box.className = 'alert show ' + tipo;
+}
+function ocultarAlerta(){
+  document.getElementById('alertBox').className = 'alert';
+}
+
+function registrarVacacion(){
+  ocultarAlerta();
+  const empId = document.getElementById('selEmpleado').value;
+  const inicio = document.getElementById('inpInicio').value;
+  const fin = document.getElementById('inpFin').value;
+  const soloHabiles = document.getElementById('chkHabiles').checked;
+
+  const emp = empleados.find(e=>e.id===empId);
+  if(!emp){ mostrarAlerta('Selecciona un empleado válido.', 'error'); return; }
+  if(!inicio || !fin){ mostrarAlerta('Selecciona la fecha de inicio y de fin en el calendario.', 'error'); return; }
+  if(fin < inicio){ mostrarAlerta('La fecha de fin no puede ser anterior a la fecha de inicio.', 'error'); return; }
+
+  const dias = contarDias(inicio, fin, soloHabiles);
+  const disponibles = diasDisponibles(emp);
+
+  if(dias > disponibles){
+    mostrarAlerta(`${emp.nombre} solo tiene ${disponibles} día(s) disponible(s) y esta solicitud pide ${dias}. Ajusta las fechas.`, 'error');
+    return;
+  }
+
+  const traslape = vacaciones.find(v => v.empleadoId===empId && seTraslapan(inicio, fin, v.inicio, v.fin));
+  if(traslape){
+    mostrarAlerta(`Las fechas se traslapan con una solicitud existente (${traslape.inicio} a ${traslape.fin}).`, 'error');
+    return;
+  }
+
+  vacaciones.push({id:uid(), empleadoId:empId, inicio, fin, dias, habiles:soloHabiles});
+  mostrarAlerta(`Solicitud registrada: ${dias} día(s) para ${emp.nombre}.`, 'ok');
+
+  document.getElementById('inpInicio').value = '';
+  document.getElementById('inpFin').value = '';
+  actualizarCalculoDias();
+  renderEmpleados();
+  renderVacaciones();
+  renderDashboard();
+  guardarEnBaseDeDatos();
+}
+
+function eliminarVacacion(id){
+  if(!confirm('¿Eliminar esta solicitud de vacaciones?')) return;
+  vacaciones = vacaciones.filter(v=>v.id!==id);
+  renderEmpleados();
+  renderVacaciones();
+  renderDashboard();
+  guardarEnBaseDeDatos();
+}
+
+function renderVacaciones(){
+  const tbody = document.getElementById('tblVacaciones');
+  const filtradas = vacaciones.filter(v=>{
+    const emp = empleados.find(e=>e.id===v.empleadoId);
+    if(!emp) return false;
+    if(searchTerm && !emp.nombre.toLowerCase().includes(searchTerm) && !emp.codigo.toLowerCase().includes(searchTerm)) return false;
+    return true;
+  }).sort((a,b)=> a.inicio.localeCompare(b.inicio));
+
+  if(filtradas.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No hay solicitudes registradas todavía.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtradas.map(v=>{
+    const emp = empleados.find(e=>e.id===v.empleadoId);
+    const estado = estadoVacacion(v);
+    return `<tr>
+      <td>${emp.nombre}</td>
+      <td class="mono">${emp.codigo}</td>
+      <td class="mono">${v.inicio}</td>
+      <td class="mono">${v.fin}</td>
+      <td class="mono">${v.dias}</td>
+      <td><span class="badge ${estado}">${estadoLabel(estado)}</span></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm" onclick="imprimirVacacion('${v.id}')">Imprimir</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarVacacion('${v.id}')">Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ============================================================
+   IMPRESIÓN
+   ============================================================ */
+function imprimirVacacion(id){
+  const v = vacaciones.find(x=>x.id===id);
+  if(!v) return;
+  const emp = empleados.find(e=>e.id===v.empleadoId);
+  const estado = estadoVacacion(v);
+
+  document.getElementById('print-area').innerHTML = `
+    <div class="print-title">Solicitud de Vacaciones — Instrumentación Turno 2</div>
+    <div class="print-row"><span>Empleado</span><span>${emp.nombre}</span></div>
+    <div class="print-row"><span>Código</span><span>${emp.codigo}</span></div>
+    <div class="print-row"><span>Turno</span><span>${emp.turno}</span></div>
+    <div class="print-row"><span>Fecha de inicio</span><span>${v.inicio}</span></div>
+    <div class="print-row"><span>Fecha de fin</span><span>${v.fin}</span></div>
+    <div class="print-row"><span>Días solicitados</span><span>${v.dias} ${v.habiles ? '(días hábiles)' : '(días naturales)'}</span></div>
+    <div class="print-row"><span>Días disponibles restantes</span><span>${diasDisponibles(emp)}</span></div>
+    <div class="print-row"><span>Estado</span><span>${estadoLabel(estado)}</span></div>
+    <div class="print-sign">
+      <div>Firma del empleado</div>
+      <div>Firma de supervisor</div>
+    </div>`;
+
+  window.print();
+}
+
+function imprimirReporteGeneral(){
+  const filasEmpleados = empleados.map(e=>{
+    const tomadosSistema = diasTomadosPorEmpleado(e.id);
+    const yaTomados = e.diasYaTomados || 0;
+    return `<div class="print-row"><span>${e.nombre} (${e.codigo}) — ${e.turno}</span><span>${yaTomados + tomadosSistema} / ${e.diasAsignados} días — Disponibles: ${diasDisponibles(e)}</span></div>`;
+  }).join('');
+
+  const filasVacaciones = vacaciones
+    .sort((a,b)=>a.inicio.localeCompare(b.inicio))
+    .map(v=>{
+      const emp = empleados.find(e=>e.id===v.empleadoId);
+      if(!emp) return '';
+      return `<div class="print-row"><span>${emp.nombre} (${emp.codigo})</span><span>${v.inicio} a ${v.fin} — ${v.dias} día(s) — ${estadoLabel(estadoVacacion(v))}</span></div>`;
+    }).join('');
+
+  document.getElementById('print-area').innerHTML = `
+    <div class="print-title">Reporte General de Vacaciones — Instrumentación Turno 2</div>
+    <p style="font-size:12px;color:#555;">Generado el ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+    <h3 style="margin-top:24px;">Saldo por empleado</h3>
+    ${filasEmpleados || '<p>No hay empleados registrados.</p>'}
+    <h3 style="margin-top:24px;">Solicitudes registradas</h3>
+    ${filasVacaciones || '<p>No hay solicitudes registradas.</p>'}
+    <div class="print-sign">
+      <div>Firma de supervisor</div>
+      <div>Firma de RR.HH.</div>
+    </div>`;
+
+  window.print();
+}
+
+/* ============================================================
+   ALERTAS DE VENCIMIENTO
+   ============================================================ */
+function renderAlertas(){
+  const cont = document.getElementById('listaAlertas');
+  const hoy = new Date();
+  const finDeAnio = new Date(hoy.getFullYear(), 11, 31);
+  const diasParaFinDeAnio = Math.ceil((finDeAnio - hoy) / 86400000);
+  const alertas = [];
+
+  empleados.forEach(e=>{
+    const disp = diasDisponibles(e);
+    if(disp < 0){
+      alertas.push({tipo:'danger', msg:`<b>${e.nombre}</b> <span class="detail">tiene un saldo negativo de ${Math.abs(disp)} día(s). Revisa su ajuste manual o sus solicitudes.</span>`});
+    } else if(disp > 0 && disp <= 3){
+      alertas.push({tipo:'warn', msg:`<b>${e.nombre}</b> <span class="detail">le quedan solo ${disp} día(s) disponible(s).</span>`});
+    }
+    if(disp > 0 && diasParaFinDeAnio <= 60 && diasParaFinDeAnio > 0){
+      const tienePlanificada = vacaciones.some(v=>v.empleadoId===e.id && estadoVacacion(v)!=='concluida');
+      if(!tienePlanificada){
+        alertas.push({tipo:'warn', msg:`<b>${e.nombre}</b> <span class="detail">tiene ${disp} día(s) sin planificar y quedan ${diasParaFinDeAnio} días para fin de año.</span>`});
+      }
+    }
+  });
+
+  cont.innerHTML = alertas.length===0
+    ? '<div class="no-alerts">Sin alertas por ahora. Todo en orden.</div>'
+    : alertas.map(a=>`<div class="alert-item ${a.tipo}"><span class="dot"></span><span>${a.msg}</span></div>`).join('');
+}
+
+/* ============================================================
+   CALENDARIO MENSUAL
+   ============================================================ */
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-11
+
+function cambiarMes(delta){
+  calMonth += delta;
+  if(calMonth > 11){ calMonth = 0; calYear++; }
+  if(calMonth < 0){ calMonth = 11; calYear--; }
+  renderCalendario();
+}
+
+function renderCalendario(){
+  const nombresMes = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('calMonthLabel').textContent = `${nombresMes[calMonth]} ${calYear}`;
+
+  const dow = document.getElementById('calGridDow');
+  dow.innerHTML = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+
+  const primerDia = new Date(calYear, calMonth, 1);
+  const diasEnMes = new Date(calYear, calMonth+1, 0).getDate();
+  const offset = primerDia.getDay();
+  const hoy = todayStr();
+
+  const celdas = [];
+  for(let i=0;i<offset;i++) celdas.push('<div class="cal-day blank"></div>');
+
+  for(let dia=1; dia<=diasEnMes; dia++){
+    const fechaStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const d = new Date(calYear, calMonth, dia);
+    const esWeekend = d.getDay()===0 || d.getDay()===6;
+    const feriadoNombre = nombreFeriado(fechaStr);
+    const vacacionesDelDia = vacaciones.filter(v => v.inicio <= fechaStr && fechaStr <= v.fin);
+
+    let clases = 'cal-day';
+    if(esWeekend) clases += ' weekend';
+    if(feriadoNombre) clases += ' feriado';
+    if(fechaStr===hoy) clases += ' today';
+    if(vacacionesDelDia.length>0) clases += ' has-vac';
+
+    const chips = vacacionesDelDia.slice(0,3).map(v=>{
+      const emp = empleados.find(e=>e.id===v.empleadoId);
+      const estado = estadoVacacion(v);
+      return `<span class="cal-chip ${estado}">${emp ? emp.nombre.split(' ')[0] : '?'}</span>`;
+    }).join('');
+    const extra = vacacionesDelDia.length>3 ? `<span class="cal-chip">+${vacacionesDelDia.length-3} más</span>` : '';
+
+    celdas.push(`<div class="${clases}">
+      <span class="num">${dia}</span>
+      ${feriadoNombre ? `<span class="fer-label">${feriadoNombre}</span>` : ''}
+      ${chips}${extra}
+    </div>`);
+  }
+
+  document.getElementById('calGrid').innerHTML = celdas.join('');
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function renderDashboard(){
+  renderAlertas();
+  const vacValidas = vacaciones.filter(v=>empleados.some(e=>e.id===v.empleadoId));
+  document.getElementById('kpiEmpleados').textContent = empleados.length;
+  document.getElementById('kpiPlanificadas').textContent = vacValidas.filter(v=>estadoVacacion(v)==='planificada').length;
+  document.getElementById('kpiProceso').textContent = vacValidas.filter(v=>estadoVacacion(v)==='enproceso').length;
+  document.getElementById('kpiConcluidas').textContent = vacValidas.filter(v=>estadoVacacion(v)==='concluida').length;
+
+  // Tabla próximas
+  const orden = {enproceso:0, planificada:1};
+  const proximas = vacaciones
+    .filter(v=>estadoVacacion(v)!=='concluida' && empleados.some(e=>e.id===v.empleadoId))
+    .sort((a,b)=> (orden[estadoVacacion(a)]-orden[estadoVacacion(b)]) || a.inicio.localeCompare(b.inicio))
+    .slice(0,10);
+  const tbody = document.getElementById('tblProximas');
+  tbody.innerHTML = proximas.length===0
+    ? '<tr class="empty-row"><td colspan="6">No hay vacaciones próximas o en curso.</td></tr>'
+    : proximas.map(v=>{
+        const emp = empleados.find(e=>e.id===v.empleadoId);
+        const estado = estadoVacacion(v);
+        return `<tr>
+          <td>${emp.nombre}</td><td class="mono">${emp.codigo}</td>
+          <td class="mono">${v.inicio}</td><td class="mono">${v.fin}</td><td class="mono">${v.dias}</td>
+          <td><span class="badge ${estado}">${estadoLabel(estado)}</span></td>
+        </tr>`;
+      }).join('');
+
+  // Chart de días
+  const chartDiasEmptyEl = document.getElementById('chartDiasEmpty');
+  const ctx1 = document.getElementById('chartDias').getContext('2d');
+  if(typeof Chart === 'undefined'){
+    chartDiasEmptyEl.textContent = 'No se pudo cargar la librería de gráficos (revisa tu conexión a internet).';
+    chartDiasEmptyEl.classList.add('show');
+  } else if(empleados.length===0){
+    if(chartDiasRef){ chartDiasRef.destroy(); chartDiasRef = null; }
+    chartDiasEmptyEl.classList.add('show');
+  } else {
+    chartDiasEmptyEl.classList.remove('show');
+    const labels = empleados.map(e=>e.codigo);
+    const diasPorEstado = (e, estado) => vacaciones
+      .filter(v=>v.empleadoId===e.id && estadoVacacion(v)===estado)
+      .reduce((sum,v)=>sum+(v.dias||0), 0);
+    const concluidos = empleados.map(e=>diasPorEstado(e,'concluida') + (e.diasYaTomados||0));
+    const enProceso = empleados.map(e=>diasPorEstado(e,'enproceso'));
+    const planificados = empleados.map(e=>diasPorEstado(e,'planificada'));
+    const disponibles = empleados.map(e=>Math.max(diasDisponibles(e),0));
+    try{
+      if(chartDiasRef) chartDiasRef.destroy();
+      chartDiasRef = new Chart(ctx1, {
+        type:'bar',
+        data:{ labels, datasets:[
+          {label:'Concluidos', data:concluidos, backgroundColor:'#3ecf8e'},
+          {label:'En proceso', data:enProceso, backgroundColor:'#ffb020'},
+          {label:'Planificados', data:planificados, backgroundColor:'#4da3ff'},
+          {label:'Disponibles', data:disponibles, backgroundColor:'#5c6b7a'}
+        ]},
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          scales:{
+            x:{stacked:true, ticks:{color:'#8b9aa8'}, grid:{color:'#232d38'}},
+            y:{stacked:true, ticks:{color:'#8b9aa8'}, grid:{color:'#232d38'}, beginAtZero:true}
+          },
+          plugins:{legend:{labels:{color:'#e8edf2'}}}
+        }
+      });
+    }catch(err){
+      console.error('Error al crear el gráfico de días:', err);
+      chartDiasEmptyEl.textContent = 'No se pudo generar el gráfico.';
+      chartDiasEmptyEl.classList.add('show');
+    }
+  }
+
+  // Chart de estados
+  const chartEstadosEmptyEl = document.getElementById('chartEstadosEmpty');
+  const ctx2 = document.getElementById('chartEstados').getContext('2d');
+  if(typeof Chart === 'undefined'){
+    chartEstadosEmptyEl.textContent = 'No se pudo cargar la librería de gráficos (revisa tu conexión a internet).';
+    chartEstadosEmptyEl.classList.add('show');
+  } else if(vacValidas.length===0){
+    if(chartEstadosRef){ chartEstadosRef.destroy(); chartEstadosRef = null; }
+    chartEstadosEmptyEl.classList.add('show');
+  } else {
+    chartEstadosEmptyEl.classList.remove('show');
+    const conteoEstados = {
+      planificada: vacValidas.filter(v=>estadoVacacion(v)==='planificada').length,
+      enproceso: vacValidas.filter(v=>estadoVacacion(v)==='enproceso').length,
+      concluida: vacValidas.filter(v=>estadoVacacion(v)==='concluida').length,
+    };
+    try{
+      if(chartEstadosRef) chartEstadosRef.destroy();
+      chartEstadosRef = new Chart(ctx2, {
+        type:'doughnut',
+        data:{
+          labels:['Planificada','En proceso','Concluida'],
+          datasets:[{ data:[conteoEstados.planificada, conteoEstados.enproceso, conteoEstados.concluida],
+            backgroundColor:['#4da3ff','#ffb020','#3ecf8e'], borderColor:'#1a212a', borderWidth:2 }]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{color:'#e8edf2'}}} }
+      });
+    }catch(err){
+      console.error('Error al crear el gráfico de estados:', err);
+      chartEstadosEmptyEl.textContent = 'No se pudo generar el gráfico.';
+      chartEstadosEmptyEl.classList.add('show');
+    }
+  }
+}
+
+/* ============================================================
+   EXPORTAR / IMPORTAR (persistencia manual entre sesiones)
+   ============================================================ */
+function exportarDatos(){
+  const data = JSON.stringify({empleados, vacaciones}, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'vacaciones_instrumentacion_backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importarDatos(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      empleados = data.empleados || [];
+      vacaciones = data.vacaciones || [];
+      renderEmpleados();
+      renderSelectEmpleados();
+      renderVacaciones();
+      renderDashboard();
+      await guardarEnBaseDeDatos();
+      alert('Datos importados y guardados correctamente.');
+    }catch(err){
+      alert('El archivo no tiene un formato válido.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+/* ============================================================
+   BASE DE DATOS — guardado y carga automática (persiste al salir)
+   ============================================================ */
+const DB_KEY = 'vacaciones_instrumentacion_db';
+
+/* Envoltorio de almacenamiento:
+   - Si el archivo corre dentro de un artefacto de Claude.ai, usa window.storage.
+   - Si se abre como archivo normal en el navegador (uso real de este panel),
+     usa localStorage, que sí persiste en esa situación. */
+const almacenamiento = {
+  async get(key){
+    if(window.storage){
+      try{ return await window.storage.get(key, false); }
+      catch(err){ /* si falla, cae a localStorage */ }
+    }
+    const raw = localStorage.getItem(key);
+    return raw !== null ? {key, value: raw, shared:false} : null;
+  },
+  async set(key, value){
+    if(window.storage){
+      try{ return await window.storage.set(key, value, false); }
+      catch(err){ /* si falla, cae a localStorage */ }
+    }
+    localStorage.setItem(key, value);
+    return {key, value, shared:false};
+  }
+};
+
+async function guardarEnBaseDeDatos(){
+  const status = document.getElementById('storageStatus');
+  try{
+    const payload = JSON.stringify({empleados, vacaciones});
+    const result = await almacenamiento.set(DB_KEY, payload);
+    if(result){
+      status.textContent = 'Guardado ✓ ' + new Date().toLocaleTimeString();
+    } else {
+      status.textContent = 'No se pudo guardar. Usa "Exportar datos" como respaldo.';
+    }
+  }catch(err){
+    status.textContent = 'No se pudo guardar automáticamente. Usa "Exportar datos" como respaldo.';
+  }
+}
+
+async function cargarDesdeBaseDeDatos(){
+  const status = document.getElementById('storageStatus');
+  try{
+    const result = await almacenamiento.get(DB_KEY);
+    if(result && result.value){
+      const data = JSON.parse(result.value);
+      empleados = data.empleados || [];
+      vacaciones = data.vacaciones || [];
+      status.textContent = 'Datos cargados ✓';
+    } else {
+      status.textContent = 'Sin datos guardados todavía. Agrega tu primer empleado para empezar.';
+    }
+  }catch(err){
+    status.textContent = 'No se pudieron cargar los datos guardados. Usa "Importar datos" si tienes un respaldo.';
+  }
+}
+
+
+/* ============================================================
+   LOGO DE LA EMPRESA
+   ============================================================ */
+const LOGO_KEY = 'empresa_logo';
+
+function mostrarLogo(dataUrl){
+  document.getElementById('companyLogoImg').src = dataUrl;
+  document.getElementById('companyLogoImg').style.display = 'block';
+  document.getElementById('companyLogoPlaceholder').style.display = 'none';
+}
+
+function abrirModalLogo(){
+  document.getElementById('logoUrlInput').value = '';
+  if(LOGO_URL_FIJO && LOGO_URL_FIJO.trim() !== ''){
+    alert('Ya tienes un logo fijo configurado directamente en el código (LOGO_URL_FIJO). Para cambiarlo, edita esa línea al inicio del archivo. Lo que elijas aquí no se aplicará mientras ese link fijo siga puesto.');
+  }
+  document.getElementById('modalLogo').classList.add('show');
+}
+
+async function guardarLogoDesdeUrl(){
+  const url = document.getElementById('logoUrlInput').value.trim();
+  if(!url){ alert('Pega un link de imagen o usa "Elegir archivo…".'); return; }
+
+  // Convierte automáticamente un link normal de GitHub (github.com/.../blob/...)
+  // al link "raw" que sirve la imagen directamente.
+  let urlFinal = url;
+  const matchBlob = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/);
+  if(matchBlob){
+    urlFinal = `https://raw.githubusercontent.com/${matchBlob[1]}/${matchBlob[2]}/${matchBlob[3]}`;
+  }
+
+  // Verifica que la imagen realmente cargue antes de guardarla.
+  const test = new Image();
+  test.onload = async ()=>{
+    mostrarLogo(urlFinal);
+    try{
+      await almacenamiento.set(LOGO_KEY, urlFinal);
+    }catch(err){
+      console.warn('No se pudo guardar el logo de forma permanente.', err);
+    }
+    closeModal('modalLogo');
+  };
+  test.onerror = ()=>{
+    alert('No se pudo cargar esa imagen. Verifica que el link sea correcto y público (si es de GitHub, usa el link "raw").');
+  };
+  test.src = urlFinal;
+}
+
+async function subirLogo(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ alert('Selecciona un archivo de imagen válido.'); return; }
+  if(file.size > 1500000){ alert('La imagen es muy grande. Usa una menor a 1.5 MB.'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    const dataUrl = e.target.result;
+    mostrarLogo(dataUrl);
+    try{
+      await almacenamiento.set(LOGO_KEY, dataUrl);
+    }catch(err){
+      console.warn('No se pudo guardar el logo de forma permanente.', err);
+    }
+    closeModal('modalLogo');
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+
+async function cargarLogo(){
+  // Si hay un link fijo configurado arriba en el código, siempre se usa ese
+  // (así el logo se ve igual en cualquier navegador o dispositivo).
+  if(LOGO_URL_FIJO && LOGO_URL_FIJO.trim() !== ''){
+    mostrarLogo(LOGO_URL_FIJO.trim());
+    return;
+  }
+  try{
+    const result = await almacenamiento.get(LOGO_KEY);
+    if(result && result.value) mostrarLogo(result.value);
+  }catch(err){
+    /* Sin logo guardado todavía; se mantiene el ícono por defecto. */
+  }
+}
+
+async function iniciar(){
+  await cargarDesdeBaseDeDatos();
+  await cargarLogo();
+  renderEmpleados();
+  renderSelectEmpleados();
+  renderVacaciones();
+  renderDashboard();
+}
+
+document.getElementById('pinAcceso').addEventListener('keydown', e=>{
+  if(e.key==='Enter') verificarPin();
+});
+
+iniciar();
+
+/* Los estados dependen de la fecha de hoy: se recalculan al volver a la pestaña o al cambiar el día */
+let ultimoDia = todayStr();
+function refrescarSiCambioElDia(){
+  const hoy = todayStr();
+  if(hoy !== ultimoDia){ ultimoDia = hoy; }
+  renderVacaciones();
+  renderCalendario();
+  renderDashboard();
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refrescarSiCambioElDia(); });
+setInterval(()=>{ if(todayStr() !== ultimoDia) refrescarSiCambioElDia(); }, 60000);
+
+/* Registra el service worker (permite instalar la app y usarla sin internet) */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>{
+      console.warn('No se pudo registrar el service worker:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
